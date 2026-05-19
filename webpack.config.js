@@ -8,6 +8,13 @@ module.exports = {
     mode: 'production',
     devServer: {
         port: 8000,
+        static: {
+            directory: path.resolve(__dirname, "static"),
+        },
+        historyApiFallback: true,
+        devMiddleware: {
+            publicPath: "/",
+        },
     },
     entry: './bootstrap.js',
     output: {
