@@ -8,7 +8,7 @@
 
 ![Updated Chatbox Image](images/Updated_Chatbox.png)
 
-![Register Image](images/Updared_Register.png)
+![Updated Register Image](images/Updated_Register.png)
 
 The register page was simplified into a clean centered card with a nickname input and a Join Chat button. This makes the first screen easier to understand before entering the chat room.
 
