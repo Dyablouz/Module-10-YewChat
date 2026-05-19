@@ -1,4 +1,6 @@
 use serde::{Deserialize, Serialize};
+use wasm_bindgen::JsValue;
+use wasm_bindgen_futures::js_sys::Date;
 use web_sys::HtmlInputElement;
 use yew::prelude::*;
 use yew_agent::{Bridge, Bridged};
@@ -9,12 +11,14 @@ use crate::{services::websocket::WebsocketService, User};
 pub enum Msg {
     HandleMsg(String),
     SubmitMessage,
+    AddEmoji(String),
 }
 
 #[derive(Deserialize)]
 struct MessageData {
     from: String,
     message: String,
+    time: f64,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -46,6 +50,12 @@ pub struct Chat {
     wss: WebsocketService,
     messages: Vec<MessageData>,
 }
+
+fn format_time(timestamp: f64) -> String {
+    let date = Date::new(&JsValue::from_f64(timestamp));
+    format!("{:02}:{:02}", date.get_hours(), date.get_minutes())
+}
+
 impl Component for Chat {
     type Message = Msg;
     type Properties = ();
@@ -115,9 +125,14 @@ impl Component for Chat {
             Msg::SubmitMessage => {
                 let input = self.chat_input.cast::<HtmlInputElement>();
                 if let Some(input) = input {
+                    let text = input.value().trim().to_string();
+                    if text.is_empty() {
+                        return false;
+                    }
+
                     let message = WebSocketMessage {
                         message_type: MsgTypes::Message,
-                        data: Some(input.value()),
+                        data: Some(text),
                         data_array: None,
                     };
                     if let Err(e) = self
@@ -132,16 +147,25 @@ impl Component for Chat {
                 };
                 false
             }
+            Msg::AddEmoji(emoji) => {
+                let input = self.chat_input.cast::<HtmlInputElement>();
+                if let Some(input) = input {
+                    let current = input.value();
+                    input.set_value(&format!("{}{}", current, emoji));
+                }
+                false
+            }
         }
     }
 
     fn view(&self, ctx: &Context<Self>) -> Html {
         let submit = ctx.link().callback(|_| Msg::SubmitMessage);
+        let emojis = vec!["😀", "😂", "🔥", "👍", "❤️", "🎉"];
 
         html! {
             <div class="flex w-screen">
                 <div class="flex-none w-56 h-screen bg-gray-100">
-                    <div class="text-xl p-3">{"Users"}</div>
+                    <div class="text-xl p-3">{format!("Users ({})", self.users.len())}</div>
                     {
                         self.users.clone().iter().map(|u| {
                             html!{
@@ -154,7 +178,7 @@ impl Component for Chat {
                                             <div>{u.name.clone()}</div>
                                         </div>
                                         <div class="text-xs text-gray-400">
-                                            {"Hi there!"}
+                                            {"Online now"}
                                         </div>
                                     </div>
                                 </div>
@@ -167,13 +191,15 @@ impl Component for Chat {
                     <div class="w-full grow overflow-auto border-b-2 border-gray-300">
                         {
                             self.messages.iter().map(|m| {
-                                let user = self.users.iter().find(|u| u.name == m.from).unwrap();
+                                let user = self.users.iter().find(|u| u.name == m.from);
+                                let avatar = user.map(|u| u.avatar.clone()).unwrap_or_default();
                                 html!{
                                     <div class="flex items-end w-3/6 bg-gray-100 m-8 rounded-tl-lg rounded-tr-lg rounded-br-lg ">
-                                        <img class="w-8 h-8 rounded-full m-3" src={user.avatar.clone()} alt="avatar"/>
+                                        <img class="w-8 h-8 rounded-full m-3" src={avatar} alt="avatar"/>
                                         <div class="p-3">
-                                            <div class="text-sm">
-                                                {m.from.clone()}
+                                            <div class="flex items-center gap-2 text-sm">
+                                                <span class="font-semibold">{m.from.clone()}</span>
+                                                <span class="text-xs text-gray-400">{format_time(m.time)}</span>
                                             </div>
                                             <div class="text-xs text-gray-500">
                                                 if m.message.ends_with(".gif") {
@@ -188,6 +214,19 @@ impl Component for Chat {
                             }).collect::<Html>()
                         }
 
+                    </div>
+                    <div class="w-full border-b border-gray-200 px-6 py-2 flex gap-2 bg-white">
+                        {
+                            emojis.iter().map(|emoji| {
+                                let emoji_value = emoji.to_string();
+                                let add_emoji = ctx.link().callback(move |_| Msg::AddEmoji(emoji_value.clone()));
+                                html! {
+                                    <button onclick={add_emoji} class="w-9 h-9 rounded-full bg-gray-100 hover:bg-indigo-100 text-lg" title="Add emoji">
+                                        {*emoji}
+                                    </button>
+                                }
+                            }).collect::<Html>()
+                        }
                     </div>
                     <div class="w-full h-14 flex px-3 items-center">
                         <input ref={self.chat_input.clone()} type="text" placeholder="Message" class="block w-full py-2 pl-4 mx-3 bg-gray-100 rounded-full outline-none focus:text-gray-700" name="message" required=true />
