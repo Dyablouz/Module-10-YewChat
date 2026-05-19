@@ -1,0 +1,11 @@
+[package]
+name = "yewchat-rust-server"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+futures-util = { version = "0.3.32", features = ["sink"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+tokio = { version = "1.52.1", features = ["full"] }
+tokio-websockets = { version = "0.13.2", features = ["server", "sha1_smol"] }
